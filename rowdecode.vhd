@@ -50,7 +50,7 @@ entity rowdecode is port(
 end rowdecode;
 
 architecture Behavioral of rowdecode is
-    type StateType is (start, tier0, tier1, tier2, combine, finish);
+    type StateType is (start, tier0, tier1, tier2, combine);
     shared variable pos: integer range 0 to 13;
     shared variable nhits_tmp : integer range 0 to 2;
     signal state : StateType;
@@ -107,6 +107,8 @@ begin
                             pos := pos-2;
                          end if;
                          state <= tier2;
+                     else
+                         state <= tier2;
                      end if;
                   when tier2 =>
                     if (node1(1)='1') and (node3="00") then
@@ -157,7 +159,9 @@ begin
                             pos := pos-2;
                          end if;
                          state <= combine;
-                      end if;
+                     else
+                         state <= combine;
+                     end if;
                   when combine =>
                     nhits_tmp := 0;
                     for i in 0 to 1 loop
@@ -177,8 +181,6 @@ begin
                     nhits <= std_logic_vector(to_unsigned(nhits_tmp, nhits'length));
                     nbits <= std_logic_vector(to_unsigned(13-pos, nbits'length));
                     rdy <= '1';
-                  when finish =>
-                    state <= finish;
                   when others =>
                     state <= start;
              end case;
