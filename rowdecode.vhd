@@ -60,6 +60,10 @@ begin
         if rising_edge(clk) then
             case state is
                 when start =>
+                    -- Initialize all nodes to zero,
+                    -- set the position to the start
+                    -- (13 == most significant bit
+                    -- of the 14-bit input)
                     pos:=13;
                     node0 <= "00";
                     node1 <= "00";
@@ -70,6 +74,11 @@ begin
                     node6 <= "00";
                     state <= tier0;
                  when tier0 =>
+                    -- In tier 0, there is only one node,
+                    -- so no ambiguity.
+                    -- The if/else block checks if the next symbol
+                    -- has 1 bits (in which case it starts with '0')
+                    -- or two bits (in which case it starts with '1')
                     if (row(pos)='0') then
                         node0 <= "01";
                         pos := pos-1;
@@ -83,7 +92,14 @@ begin
 
                      state <= tier1;
                  when tier1 =>
+                    -- Same as tier0, except we now have to
+                    -- check which node to write to, as there are
+                    -- two nodes on this layer. The decision is based
+                    -- on whether the respective nodes have already
+                    -- been filled and whether or not the parent node
+                    -- says that the given node *should* be filled.
                     if (node0(1)='1') and (node1="00") then
+                        -- Fill node 1
                         if (row(pos)='0') then
                             node1 <= "01";
                             pos := pos-1;
@@ -96,6 +112,7 @@ begin
                          end if;
                          state <= tier1;
                     elsif (node0(0)='1') and (node2="00") then
+                     -- Fill node 2
                         if (row(pos)='0') then
                             node2 <= "01";
                             pos := pos-1;
@@ -111,7 +128,11 @@ begin
                          state <= tier2;
                      end if;
                   when tier2 =>
+                     -- Same as tier1, except there are now
+                     -- four possible nodes, descending from
+                     -- two parent nodes.
                     if (node1(1)='1') and (node3="00") then
+                     -- Fill node 3
                         if (row(pos)='0') then
                             node3 <= "01";
                             pos := pos-1;
@@ -124,6 +145,7 @@ begin
                          end if;
                          state <= tier2;
                     elsif (node1(0)='1') and (node4="00") then
+                     -- Fill node 4
                         if (row(pos)='0') then
                             node4 <= "01";
                             pos := pos-1;
@@ -136,6 +158,7 @@ begin
                          end if;
                          state <= tier2;
                      elsif (node2(1)='1') and (node5="00") then
+                        -- Fill node 5
                         if (row(pos)='0') then
                             node5 <= "01";
                             pos := pos-1;
@@ -148,6 +171,7 @@ begin
                          end if;
                          state <= tier2;
                      elsif (node2(0)='1') and (node6="00") then
+                        -- Fill node 6
                         if (row(pos)='0') then
                             node6 <= "01";
                             pos := pos-1;
@@ -163,6 +187,12 @@ begin
                          state <= combine;
                      end if;
                   when combine =>
+                    -- All nodes have been filled.
+                    -- Derive the quantities we are interestd in
+
+                    -- The number of hits in the row is equal
+                    -- to the number of '1's in the 4 nodes of
+                    -- tier2.
                     nhits_tmp := 0;
                     for i in 0 to 1 loop
                         if node3(i) = '1' then
@@ -179,7 +209,12 @@ begin
                         end if;
                     end loop;
                     nhits <= std_logic_vector(to_unsigned(nhits_tmp, nhits'length));
+
+                    -- The length of the encoded row in bits is given by the 
+                    -- value of the 'pos' variable.
                     nbits <= std_logic_vector(to_unsigned(13-pos, nbits'length));
+
+                    -- Set the rdy signal to let the world know we are done
                     rdy <= '1';
                   when others =>
                     state <= start;
