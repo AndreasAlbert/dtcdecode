@@ -1,21 +1,21 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
+-- Company:
+-- Engineer:
+--
 -- Create Date: 09/24/2019 09:43:42 AM
--- Design Name: 
+-- Design Name:
 -- Module Name: rowdecode - Behavioral
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
--- Description: 
--- 
--- Dependencies: 
--- 
+-- Project Name:
+-- Target Devices:
+-- Tool Versions:
+-- Description:
+--
+-- Dependencies:
+--
 -- Revision:
 -- Revision 0.01 - File Created
 -- Additional Comments:
--- 
+--
 ----------------------------------------------------------------------------------
 
 
@@ -33,7 +33,7 @@ use ieee.std_logic_unsigned.all;
 entity rowdecode is port(
     row: in std_logic_vector(13 downto 0);
     clk: in std_logic;
-    
+
     rdy: out std_logic;
     nhits: out std_logic_vector(2 downto 0);
     nbits: out std_logic_vector(3 downto 0);
@@ -103,14 +103,20 @@ begin
                         if (row(pos)='0') then
                             node1 <= "01";
                             pos := pos-1;
-                         elsif (row(pos-1)='1') then
+                        elsif (row(pos-1)='1') then
                             node1<= "11";
                             pos := pos-2;
-                         else
+                        else
                             node1<="10";
                             pos := pos-2;
-                         end if;
-                         state <= tier1;
+                        end if;
+
+                        -- Shortcut to tier 2
+                        if(node0(0)='1') then
+                            state <= tier1;
+                        else
+                            state <= tier2;
+                        end if;
                     elsif (node0(0)='1') and (node2="00") then
                      -- Fill node 2
                         if (row(pos)='0') then
@@ -143,7 +149,13 @@ begin
                             node3<="10";
                             pos := pos-2;
                          end if;
-                         state <= tier2;
+
+                        -- Shortcut to end
+                        if(node1(0)='0') and (node2="00") then
+                            state <= combine;
+                        else
+                            state <= tier2;
+                        end if;
                     elsif (node1(0)='1') and (node4="00") then
                      -- Fill node 4
                         if (row(pos)='0') then
@@ -156,7 +168,13 @@ begin
                             node4<="10";
                             pos := pos-2;
                          end if;
-                         state <= tier2;
+
+                         -- Shortcut to end
+                         if(node2="00") then
+                             state <= combine;
+                         else
+                             state <= tier2;
+                         end if;
                      elsif (node2(1)='1') and (node5="00") then
                         -- Fill node 5
                         if (row(pos)='0') then
@@ -170,6 +188,12 @@ begin
                             pos := pos-2;
                          end if;
                          state <= tier2;
+                         -- Shortcut to end
+                         if(node2(0)='0') then
+                            state <= combine;
+                        else
+                            state <= tier2;
+                        end if;
                      elsif (node2(0)='1') and (node6="00") then
                         -- Fill node 6
                         if (row(pos)='0') then
@@ -210,7 +234,7 @@ begin
                     end loop;
                     nhits <= std_logic_vector(to_unsigned(nhits_tmp, nhits'length));
 
-                    -- The length of the encoded row in bits is given by the 
+                    -- The length of the encoded row in bits is given by the
                     -- value of the 'pos' variable.
                     nbits <= std_logic_vector(to_unsigned(13-pos, nbits'length));
 

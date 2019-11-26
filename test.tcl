@@ -1788,3 +1788,4 @@ puts $fp "[get_value -radix bin row] [get_value -radix bin rdy] [get_value -radi
 restart
 
 close $fp
+exit

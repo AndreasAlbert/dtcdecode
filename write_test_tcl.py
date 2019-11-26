@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from textwrap import dedent
 from encoder import Enc8
 
@@ -23,7 +25,7 @@ for k, v in Enc8.items():
         restart
         ''')
 
-text = text + '\nclose $fp'
+text = text + '\nclose $fp' + '\nexit'
 
 
 with open('test.tcl','w') as f:
