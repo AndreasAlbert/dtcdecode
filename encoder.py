@@ -9,9 +9,6 @@
 
 # Remark: Data encoding and streams are built in - strings - of "1" and "0" to be able to emulate varying bit-length
 
-import numpy as np
-import numba
-
 Enc2 = {
     "00" : (0, "00"),
     "01" : (1, "00"),
@@ -277,93 +274,3 @@ Enc8 = {
     "11111110" : ( 14, "11111111111110" ),
     "11111111" : ( 14, "11111111111111" )
 }
-
-def qcore_encoding( qcore ):
-  """
-  Encoding happens in quarter cores (qcore, 2x8 pixels).
-  The encoding process is mimicking the FPGA implementation.
-  - qcore: list of size of 16 with quarter core hits in 4b ToT information (0 = no hit, 15 = max)
-    -> qcore[0] = top left, qcore[15] = lower right
-  - Returns: binary tree encoded quarter core, ToT info, number of hits in that qcore
-    -> bte format: Enc2 of both rows + Enc8 of upper row + Enc8 of lower row
-  """
-  if len(qcore) != 16:
-    raise ValueError("Provided data is not of length 16!")
-  if max(qcore) > 15:
-    raise ValueError("Provided data has a value > 15, which is not compatible with 4 bit ToT values!")
-  # Count number of fired pixels
-  n_hits = np.count_nonzero( qcore )
-  # Terminate if no hits in this qcore
-  if n_hits == 0:
-    bte_data = None
-    ToT = None
-    return bte_data, ToT, n_hits
-  # Split into two lists:
-  # List with binary hit information
-  Hit = [ 1 if px > 0 else 0 for px in qcore ]
-  # List with zero suppressed, aligned ToT information
-  AlignToT = [ tot for tot in qcore if tot > 0 ]
-  # Convert to continuous string
-  ToT = ''.join( '{0:04b}'.format(tot) for tot in AlignToT )
-  # Start binary tree encoding:
-  # First, Enc2 is used to indicate hits in each row (vertical hit map)
-  row_or = str( any(Hit[0:8])*1 ) + str( any(Hit[8:16])*1 )
-  HitV = Enc2[row_or]
-  # Then perform Enc8 on each row (horizontal hit map, per row)
-  # (but first convert to str)
-  row_str = ''.join( str(e) for e in Hit )
-  Enc8_0 = Enc8[row_str[0:8]] # upper row
-  Enc8_1 = Enc8[row_str[8:16]] # lower row
-  # Encoded 2x8 data: Vertical + upper row + lower row
-  bte_data = HitV[1][:HitV[0]] + Enc8_0[1][:Enc8_0[0]] + Enc8_1[1][:Enc8_1[0]]
-  bte_data = ( HitV[1][:HitV[0]], Enc8_0[1][:Enc8_0[0]], Enc8_1[1][:Enc8_1[0]] )
-  return bte_data, ToT, n_hits
-
-#qcore_len
-def qcore_len( qcore ):
-  """
-  Follows the same encoding procedure as qcore_encoding(),
-  but only returns the length of the binary tree and tot data.
-  This function is used to speed up the data rate simulation in case
-  that the actual data stream is not needed.
-  """
-  if len(qcore) != 16:
-    raise ValueError("Provided data is not of length 16!")
-  if max(qcore) > 15:
-    raise ValueError("Provided data has a value > 15, which is not compatible with 4 bit ToT values!")
-  # Count number of fired pixels
-  n_hits = np.count_nonzero( qcore )
-  # Terminate if no hits in this qcore
-  if n_hits == 0:
-    bte_data_len = 0
-    ToT_len = 0
-    return bte_data_len, ToT_len, n_hits
-  ToT_len = n_hits * 4
-  # List with binary hit information
-  Hit = [ 1 if px > 0 else 0 for px in qcore ]
-  # Start binary tree encoding:
-  # First, Enc2 is used to indicate hits in each row (vertical hit map)
-  row_or = str( any(Hit[0:8])*1 ) + str( any(Hit[8:16])*1 )
-  HitV_len = Enc2[row_or][0]
-  # Then perform Enc8 on each row (horizontal hit map, per row)
-  # (but first convert to str)
-  row_str = ''.join( str(e) for e in Hit )
-  Enc8_0_len = Enc8[row_str[0:8]][0] # upper row
-  Enc8_1_len = Enc8[row_str[8:16]][0] # lower row
-  bte_data_len = HitV_len + Enc8_0_len + Enc8_1_len
-  return bte_data_len, ToT_len, n_hits
-
-@numba.jit(nopython=True)
-def find_last_qrow( ccol_data ):
-  # ccol_data = tepx_module.matrix[:, ccol*col_factor:(ccol+1)*col_factor]
-  if ccol_data.shape != (1360, 8):
-    raise ValueError("Provided core column data is not of shape (1360,8)!")
-  # Determine rows that have a hit
-  summing = np.sum(ccol_data, axis=1)
-  hit_row = np.nonzero( summing )[0]
-  # Return the last quarter core row number with a hit
-  if hit_row.any():
-    return max(hit_row) // 2
-  else:
-    return None
-
