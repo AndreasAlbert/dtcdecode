@@ -39,8 +39,8 @@ code = code + textwrap.dedent(
     --BUFG:GeneralClockBuffer
     --UltraScale
     --XilinxHDLLanguageTemplate,version2018.1
-    BUFG_inst:BUFG
-    portmap(
+    BUFG_inst : BUFG
+    port map(
             O=>clk_bufg,  --1-bitoutput:Clockoutput
             I=>clk        --1-bitinput:Clockinput
         );
