@@ -54,7 +54,7 @@ port map(
 rowdecoder0: entity work.rowdecode
     port map (
         row => row0,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy0
         );
 
@@ -62,7 +62,7 @@ rowdecoder0: entity work.rowdecode
 rowdecoder1: entity work.rowdecode
     port map (
         row => row1,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy1
         );
 
@@ -70,7 +70,7 @@ rowdecoder1: entity work.rowdecode
 rowdecoder2: entity work.rowdecode
     port map (
         row => row2,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy2
         );
 
@@ -78,7 +78,7 @@ rowdecoder2: entity work.rowdecode
 rowdecoder3: entity work.rowdecode
     port map (
         row => row3,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy3
         );
 
@@ -86,7 +86,7 @@ rowdecoder3: entity work.rowdecode
 rowdecoder4: entity work.rowdecode
     port map (
         row => row4,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy4
         );
 
@@ -94,7 +94,7 @@ rowdecoder4: entity work.rowdecode
 rowdecoder5: entity work.rowdecode
     port map (
         row => row5,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy5
         );
 
@@ -102,7 +102,7 @@ rowdecoder5: entity work.rowdecode
 rowdecoder6: entity work.rowdecode
     port map (
         row => row6,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy6
         );
 
@@ -110,7 +110,7 @@ rowdecoder6: entity work.rowdecode
 rowdecoder7: entity work.rowdecode
     port map (
         row => row7,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy7
         );
 
@@ -118,7 +118,7 @@ rowdecoder7: entity work.rowdecode
 rowdecoder8: entity work.rowdecode
     port map (
         row => row8,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy8
         );
 
@@ -126,7 +126,7 @@ rowdecoder8: entity work.rowdecode
 rowdecoder9: entity work.rowdecode
     port map (
         row => row9,
-        clk => clk,
+        clk => clk_bufg,
         rdy => rdy9
         );
 

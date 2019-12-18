@@ -55,7 +55,7 @@ for i in range(N):
         rowdecoder{i}: entity work.rowdecode
             port map (
                 row => row{i},
-                clk => clk,
+                clk => clk_bufg,
                 rdy => rdy{i}
                 );
 
