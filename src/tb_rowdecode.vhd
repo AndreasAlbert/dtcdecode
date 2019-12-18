@@ -138,15 +138,15 @@ dummy_proc:process(clk, rnd) begin
 buf <= std_logic_vector(shift_left(unsigned(buf), 1));
 buf(29) <= rnd;
 
-row0 <= buf(14 downto 0);
-row1 <= buf(15 downto 1);
-row2 <= buf(16 downto 2);
-row3 <= buf(17 downto 3);
-row4 <= buf(18 downto 4);
-row5 <= buf(19 downto 5);
-row6 <= buf(20 downto 6);
-row7 <= buf(21 downto 7);
-row8 <= buf(22 downto 8);
+row0 <= buf(13 downto 0);
+row1 <= buf(14 downto 1);
+row2 <= buf(15 downto 2);
+row3 <= buf(16 downto 3);
+row4 <= buf(17 downto 4);
+row5 <= buf(18 downto 5);
+row6 <= buf(19 downto 6);
+row7 <= buf(20 downto 7);
+row8 <= buf(21 downto 8);
     end if;
 end process dummy_proc;
 

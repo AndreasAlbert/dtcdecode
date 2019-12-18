@@ -76,7 +76,7 @@ code = code + textwrap.dedent(f'''
 
 for i in range(N-1):
     code = code + textwrap.dedent(f'''
-    row{i} <= buf({i+14} downto {i});''')
+    row{i} <= buf({i+13} downto {i});''')
     
 code = code + textwrap.dedent(f'''
         end if;
