@@ -2,7 +2,7 @@
 
 import textwrap
 
-N = 10
+N = 100
 code = textwrap.dedent('''
 library ieee;
 use ieee.std_logic_1164.all;
@@ -21,12 +21,12 @@ end entity tb_rowdecode;
 architecture behavioral of tb_rowdecode is
 ''')
 
-for i in range(10):
+for i in range(N):
     code = code + textwrap.dedent(f'''signal rdy{i} : std_logic;
     ''')
     code = code + textwrap.dedent(f'''signal row{i} : std_logic_vector(13 downto 0);
     ''')
-code = code + textwrap.dedent(f'''signal buf: std_logic_vector(29 downto 0);
+code = code + textwrap.dedent(f'''signal buf: std_logic_vector({N+14} downto 0);
 ''')
 code = code + textwrap.dedent(f'''signal clk_bufg: std_logic;
 ''')
