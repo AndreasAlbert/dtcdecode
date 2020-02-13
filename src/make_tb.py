@@ -72,7 +72,7 @@ dummy_proc:process(clk, rnd) begin
     if rising_edge(clk) then
         rdy <= ''')
 for i in range(N-1):
-    code = code + textwrap.dedent(f'''rdy{i} xor nhits{i}="111" xor nbits{i}="1111" xor ''')
+    code = code + textwrap.dedent(f'''rdy{i} xor (nhits{i}="111") xor (nbits{i}="1111") xor ''')
 code = code + textwrap.dedent(f'''rdy{N-1} xor rnd;''')
 code = code + textwrap.dedent(f'''
 
