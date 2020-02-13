@@ -2,7 +2,7 @@
 
 import textwrap
 
-N = 100
+N = 10
 code = textwrap.dedent('''
 library ieee;
 use ieee.std_logic_1164.all;
@@ -25,6 +25,10 @@ for i in range(N):
     code = code + textwrap.dedent(f'''signal rdy{i} : std_logic;
     ''')
     code = code + textwrap.dedent(f'''signal row{i} : std_logic_vector(13 downto 0);
+    ''')
+    code = code + textwrap.dedent(f'''signal nhits{i} : std_logic_vector(2 downto 0);
+    ''')
+    code = code + textwrap.dedent(f'''signal nbits{i} : std_logic_vector(3 downto 0);
     ''')
 code = code + textwrap.dedent(f'''signal buf: std_logic_vector({N+14} downto 0);
 ''')
@@ -56,7 +60,9 @@ for i in range(N):
             port map (
                 row => row{i},
                 clk => clk_bufg,
-                rdy => rdy{i}
+                rdy => rdy{i},
+                nhits => nhits{i},
+                nbits => nbits{i}
                 );
 
     ''')
@@ -66,12 +72,12 @@ dummy_proc:process(clk, rnd) begin
     if rising_edge(clk) then
         rdy <= ''')
 for i in range(N-1):
-    code = code + textwrap.dedent(f'''rdy{i} xor ''')
+    code = code + textwrap.dedent(f'''rdy{i} xor nhits{i}=="111" xor nbits{i}=="111"src/''')
 code = code + textwrap.dedent(f'''rdy{N-1} xor rnd;''')
 code = code + textwrap.dedent(f'''
 
         buf <= std_logic_vector(shift_left(unsigned(buf), 1));
-        buf(29) <= rnd;
+        buf({N+13}) <= rnd;
 ''')
 
 for i in range(N-1):
@@ -90,5 +96,5 @@ code = code + textwrap.dedent(
     )
 
 
-with open('tb_rowdecode.vhd','w') as f:
+with open('src/tb_rowdecode.vhd','w') as f:
     f.write(code)
