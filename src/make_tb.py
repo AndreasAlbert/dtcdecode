@@ -73,7 +73,17 @@ dummy_proc:process(clk, rnd) begin
         rdy <= ''')
 for i in range(N-1):
     code = code + textwrap.dedent(f'''rdy{i} xor (nhits{i}="111") xor (nbits{i}="1111") xor ''')
-code = code + textwrap.dedent(f'''rdy{N-1} xor rnd;''')
+code = code + textwrap.dedent(f'''rdy{N-1} xor rnd;\n''')
+
+for i in range(N):
+    code = code + \
+    f'''
+    if (nhits{i}="111") and (nbits{i}="1111") then
+            rdy <= rdy{1} xor '1';
+    end if;\
+    '''
+
+
 code = code + textwrap.dedent(f'''
 
         buf <= std_logic_vector(shift_left(unsigned(buf), 1));
