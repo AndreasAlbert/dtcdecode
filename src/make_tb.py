@@ -75,13 +75,13 @@ dummy_proc:process(clk, rnd) begin
 code = code + '        if'
 for i in range(N-1):
     code = code + f'(nhits{i}="010") and (nbits{i}="0010") and'
-code = code + f'(nhits{N-1}="010") and (nbits{N-1}="0010") then\n        '
+code = code + f'(nhits{N-1}="010") and (nbits{N-1}="0010") then\n        rdy <= '
 for i in range(N-1):
-    code = code + 'rdy <= ' + textwrap.dedent(f'''rdy{i} xor ''')
+    code = code + textwrap.dedent(f'''rdy{i} xor ''')
 code = code + textwrap.dedent(f'''rdy{N-1} xor rnd;\n''')
-code = code + "    else\n        "
+code = code + "    else\n        rdy <= "
 for i in range(N-1):
-    code = code + 'rdy <= ' + textwrap.dedent(f'''rdy{i} and ''')
+    code = code +  textwrap.dedent(f'''rdy{i} and ''')
 code = code + textwrap.dedent(f'''rdy{N-1} and rnd;\n''')
 code = code + "    end if;"
 

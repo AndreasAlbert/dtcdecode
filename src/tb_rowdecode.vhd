@@ -174,9 +174,9 @@ rowdecoder9: entity work.rowdecode
 dummy_proc:process(clk, rnd) begin
     if rising_edge(clk) then
         if(nhits0="010") and (nbits0="0010") and(nhits1="010") and (nbits1="0010") and(nhits2="010") and (nbits2="0010") and(nhits3="010") and (nbits3="0010") and(nhits4="010") and (nbits4="0010") and(nhits5="010") and (nbits5="0010") and(nhits6="010") and (nbits6="0010") and(nhits7="010") and (nbits7="0010") and(nhits8="010") and (nbits8="0010") and(nhits9="010") and (nbits9="0010") then
-        rdy <= rdy0 xor rdy <= rdy1 xor rdy <= rdy2 xor rdy <= rdy3 xor rdy <= rdy4 xor rdy <= rdy5 xor rdy <= rdy6 xor rdy <= rdy7 xor rdy <= rdy8 xor rdy9 xor rnd;
+        rdy <= rdy0 xor rdy1 xor rdy2 xor rdy3 xor rdy4 xor rdy5 xor rdy6 xor rdy7 xor rdy8 xor rdy9 xor rnd;
     else
-        rdy <= rdy0 and rdy <= rdy1 and rdy <= rdy2 and rdy <= rdy3 and rdy <= rdy4 and rdy <= rdy5 and rdy <= rdy6 and rdy <= rdy7 and rdy <= rdy8 and rdy9 and rnd;
+        rdy <= rdy0 and rdy1 and rdy2 and rdy3 and rdy4 and rdy5 and rdy6 and rdy7 and rdy8 and rdy9 and rnd;
     end if;
 
 buf <= std_logic_vector(shift_left(unsigned(buf), 1));
