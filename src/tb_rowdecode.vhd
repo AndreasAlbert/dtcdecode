@@ -176,34 +176,34 @@ dummy_proc:process(clk, rnd) begin
         rdy <= rdy0 xor rdy1 xor rdy2 xor rdy3 xor rdy4 xor rdy5 xor rdy6 xor rdy7 xor rdy8 xor rdy9 xor rnd;
 
     if (nhits0="111") and (nbits0="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy0 xor '1';
     end if;    
     if (nhits1="111") and (nbits1="1111") then
             rdy <= rdy1 xor '1';
     end if;    
     if (nhits2="111") and (nbits2="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy2 xor '1';
     end if;    
     if (nhits3="111") and (nbits3="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy3 xor '1';
     end if;    
     if (nhits4="111") and (nbits4="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy4 xor '1';
     end if;    
     if (nhits5="111") and (nbits5="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy5 xor '1';
     end if;    
     if (nhits6="111") and (nbits6="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy6 xor '1';
     end if;    
     if (nhits7="111") and (nbits7="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy7 xor '1';
     end if;    
     if (nhits8="111") and (nbits8="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy8 xor '1';
     end if;    
     if (nhits9="111") and (nbits9="1111") then
-            rdy <= rdy1 xor '1';
+            rdy <= rdy9 xor '1';
     end if;    
 
 buf <= std_logic_vector(shift_left(unsigned(buf), 1));
@@ -218,6 +218,7 @@ row5 <= buf(18 downto 5);
 row6 <= buf(19 downto 6);
 row7 <= buf(20 downto 7);
 row8 <= buf(21 downto 8);
+row9 <= buf(22 downto 9);
     end if;
 end process dummy_proc;
 

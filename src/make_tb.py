@@ -79,7 +79,7 @@ for i in range(N):
     code = code + \
     f'''
     if (nhits{i}="111") and (nbits{i}="1111") then
-            rdy <= rdy{1} xor '1';
+            rdy <= rdy{i} xor '1';
     end if;\
     '''
 
@@ -90,7 +90,7 @@ code = code + textwrap.dedent(f'''
         buf({N+13}) <= rnd;
 ''')
 
-for i in range(N-1):
+for i in range(N):
     code = code + textwrap.dedent(f'''
     row{i} <= buf({i+13} downto {i});''')
     
