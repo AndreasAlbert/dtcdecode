@@ -70,19 +70,20 @@ for i in range(N):
 code = code + textwrap.dedent(f'''
 dummy_proc:process(clk, rnd) begin
     if rising_edge(clk) then
-        rdy <= ''')
+    ''')
+
+code = code + '        if'
 for i in range(N-1):
-    code = code + textwrap.dedent(f'''rdy{i} xor ''')
+    code = code + f'(nhits{i}="010") and (nbits{i}="0010") and'
+code = code + f'(nhits{N-1}="010") and (nbits{N-1}="0010") then\n        '
+for i in range(N-1):
+    code = code + 'rdy <= ' + textwrap.dedent(f'''rdy{i} xor ''')
 code = code + textwrap.dedent(f'''rdy{N-1} xor rnd;\n''')
-
-for i in range(N):
-    code = code + \
-    f'''
-    if (nhits{i}="111") and (nbits{i}="1111") then
-            rdy <= rdy{i} xor '1';
-    end if;\
-    '''
-
+code = code + "    else\n        "
+for i in range(N-1):
+    code = code + 'rdy <= ' + textwrap.dedent(f'''rdy{i} and ''')
+code = code + textwrap.dedent(f'''rdy{N-1} and rnd;\n''')
+code = code + "    end if;"
 
 code = code + textwrap.dedent(f'''
 

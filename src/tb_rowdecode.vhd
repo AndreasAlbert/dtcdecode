@@ -173,37 +173,11 @@ rowdecoder9: entity work.rowdecode
 
 dummy_proc:process(clk, rnd) begin
     if rising_edge(clk) then
-        -- rdy <= rdy0 xor rdy1 xor rdy2 xor rdy3 xor rdy4 xor rdy5 xor rdy6 xor rdy7 xor rdy8 xor rdy9 xor rnd;
-        if (nhits0="001") and (nbits0="0011") then
-                rdy <= rdy0 xor '1';
-        end if;    
-        if (nhits1="001") and (nbits1="0011") then
-                rdy <= rdy1 xor '1';
-        end if;    
-        if (nhits2="001") and (nbits2="0011") then
-                rdy <= rdy2 xor '1';
-        end if;    
-        if (nhits3="001") and (nbits3="0011") then
-                rdy <= rdy3 xor '1';
-        end if;    
-        if (nhits4="001") and (nbits4="0011") then
-                rdy <= rdy4 xor '1';
-        end if;    
-        if (nhits5="001") and (nbits5="0011") then
-                rdy <= rdy5 xor '1';
-        end if;    
-        if (nhits6="001") and (nbits6="0011") then
-                rdy <= rdy6 xor '1';
-        end if;    
-        if (nhits7="001") and (nbits7="0011") then
-                rdy <= rdy7 xor '1';
-        end if;    
-        if (nhits8="001") and (nbits8="0011") then
-                rdy <= rdy8 xor '1';
-        end if;    
-        if (nhits9="001") and (nbits9="0011") then
-                rdy <= rdy9 xor '1';
-        end if;    
+        if(nhits0="010") and (nbits0="0010") and(nhits1="010") and (nbits1="0010") and(nhits2="010") and (nbits2="0010") and(nhits3="010") and (nbits3="0010") and(nhits4="010") and (nbits4="0010") and(nhits5="010") and (nbits5="0010") and(nhits6="010") and (nbits6="0010") and(nhits7="010") and (nbits7="0010") and(nhits8="010") and (nbits8="0010") and(nhits9="010") and (nbits9="0010") then
+        rdy <= rdy0 xor rdy <= rdy1 xor rdy <= rdy2 xor rdy <= rdy3 xor rdy <= rdy4 xor rdy <= rdy5 xor rdy <= rdy6 xor rdy <= rdy7 xor rdy <= rdy8 xor rdy9 xor rnd;
+    else
+        rdy <= rdy0 and rdy <= rdy1 and rdy <= rdy2 and rdy <= rdy3 and rdy <= rdy4 and rdy <= rdy5 and rdy <= rdy6 and rdy <= rdy7 and rdy <= rdy8 and rdy9 and rnd;
+    end if;
 
 buf <= std_logic_vector(shift_left(unsigned(buf), 1));
 buf(23) <= rnd;
