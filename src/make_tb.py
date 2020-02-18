@@ -6,6 +6,7 @@ N = 10
 code = textwrap.dedent('''
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 library UNISIM;
 use UNISIM.vcomponents.all;
@@ -73,8 +74,8 @@ dummy_proc:process(clk, rnd) begin
         ''')
 code = code + "        rdy <= "
 for i in range(N-1):
-    code = code + textwrap.dedent(f'''rdy{i} xor ''')
-code = code + textwrap.dedent(f'''rdy{N-1} xor rnd;\n''')
+    code = code + textwrap.dedent(f'''rdy{i} xor xor_reduce(nhits{i}) and xor_reduce(nbits{i}) xor ''')
+code = code + textwrap.dedent(f'''rdy{N-1} xor xor_reduce(nhits{N-1}) and xor_reduce(nbits{N-1}) and rnd;\n''')
 
 code = code + textwrap.dedent(f'''
 
