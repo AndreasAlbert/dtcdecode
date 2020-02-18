@@ -9,7 +9,7 @@ use UNISIM.vcomponents.all;
 entity tb_rowdecode is
 port (
     clk : in std_logic;
-    row0 : in std_logic_vector(7 downto 0);
+    row0 : in std_logic_vector(13 downto 0);
     rdy0 : out std_logic;
     nhits0 : out std_logic_vector(2 downto 0);
     nbits0 : out std_logic_vector(3 downto 0)

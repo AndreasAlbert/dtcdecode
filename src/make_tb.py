@@ -16,7 +16,7 @@ port (
     clk : in std_logic;
 ''')
 for i in range(N):
-    code = code + f'    row{i} : in std_logic_vector(7 downto 0);\n'
+    code = code + f'    row{i} : in std_logic_vector(13 downto 0);\n'
     code = code + f'    rdy{i} : out std_logic;\n'
     code = code + f'    nhits{i} : out std_logic_vector(2 downto 0);\n'
     code = code + f'    nbits{i} : out std_logic_vector(3 downto 0)\n'
