@@ -74,8 +74,8 @@ dummy_proc:process(clk, rnd) begin
         ''')
 code = code + "        rdy <= "
 for i in range(N-1):
-    code = code + textwrap.dedent(f'''rdy{i} xor xor_reduce(nhits{i}) and xor_reduce(nbits{i}) xor ''')
-code = code + textwrap.dedent(f'''rdy{N-1} xor xor_reduce(nhits{N-1}) and xor_reduce(nbits{N-1}) and rnd;\n''')
+    code = code + textwrap.dedent(f'''rdy{i} xor xor_reduce(nhits{i}) or xor_reduce(nbits{i}) xor ''')
+code = code + textwrap.dedent(f'''rdy{N-1} xor xor_reduce(nhits{N-1}) or xor_reduce(nbits{N-1}) xor rnd;\n''')
 
 code = code + textwrap.dedent(f'''
 

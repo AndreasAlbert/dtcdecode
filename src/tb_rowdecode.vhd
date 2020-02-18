@@ -174,7 +174,7 @@ rowdecoder9: entity work.rowdecode
 
 dummy_proc:process(clk, rnd) begin
     if rising_edge(clk) then
-        rdy <= rdy0 xor xor_reduce(nhits0) and xor_reduce(nbits0) xor rdy1 xor xor_reduce(nhits1) and xor_reduce(nbits1) xor rdy2 xor xor_reduce(nhits2) and xor_reduce(nbits2) xor rdy3 xor xor_reduce(nhits3) and xor_reduce(nbits3) xor rdy4 xor xor_reduce(nhits4) and xor_reduce(nbits4) xor rdy5 xor xor_reduce(nhits5) and xor_reduce(nbits5) xor rdy6 xor xor_reduce(nhits6) and xor_reduce(nbits6) xor rdy7 xor xor_reduce(nhits7) and xor_reduce(nbits7) xor rdy8 xor xor_reduce(nhits8) and xor_reduce(nbits8) xor rdy9 xor xor_reduce(nhits9) and xor_reduce(nbits9) and rnd;
+        rdy <= rdy0 xor xor_reduce(nhits0) or xor_reduce(nbits0) xor rdy1 xor xor_reduce(nhits1) or xor_reduce(nbits1) xor rdy2 xor xor_reduce(nhits2) or xor_reduce(nbits2) xor rdy3 xor xor_reduce(nhits3) or xor_reduce(nbits3) xor rdy4 xor xor_reduce(nhits4) or xor_reduce(nbits4) xor rdy5 xor xor_reduce(nhits5) or xor_reduce(nbits5) xor rdy6 xor xor_reduce(nhits6) or xor_reduce(nbits6) xor rdy7 xor xor_reduce(nhits7) or xor_reduce(nbits7) xor rdy8 xor xor_reduce(nhits8) or xor_reduce(nbits8) xor rdy9 xor xor_reduce(nhits9) or xor_reduce(nbits9) xor rnd;
 
 
 buf <= std_logic_vector(shift_left(unsigned(buf), 1));
