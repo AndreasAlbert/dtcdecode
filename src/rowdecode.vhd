@@ -31,40 +31,47 @@ use ieee.std_logic_unsigned.all;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 entity rowdecode is port(
-    row: in std_logic_vector(13 downto 0);
-    clk: in std_logic;
+    row: in std_logic_vector(13 downto 0); -- Binary tree encoded input row information we want to decode
+    clk: in std_logic; 
+    go: in std_logic; -- Start decoding if in idle state
 
-    rdy: out std_logic;
-    nhits: out std_logic_vector(2 downto 0);
-    nbits: out std_logic_vector(3 downto 0);
-
-    node0: buffer std_logic_vector(1 downto 0);
-    node1: buffer std_logic_vector(1 downto 0);
-    node2: buffer std_logic_vector(1 downto 0);
-    node3: buffer std_logic_vector(1 downto 0);
-    node4: buffer std_logic_vector(1 downto 0);
-    node5: buffer std_logic_vector(1 downto 0);
-    node6: buffer std_logic_vector(1 downto 0)
+    rdy: out std_logic;                      -- Flag to say we are done decoding
+    nhits: out std_logic_vector(3 downto 0); -- Decoding output: Number of hits in the row (1-8)
+    nbits: out std_logic_vector(3 downto 0)  -- Decoding output: Number of bits in the row (1-14)
     );
 --  Port ( );
 end rowdecode;
 
 architecture Behavioral of rowdecode is
-    type StateType is (start, tier0, tier1, tier2, combine);
-    shared variable pos: integer range 0 to 13;
-    shared variable nhits_tmp : integer range 0 to 2;
+    type StateType is (idle, start, tier0, tier1, tier2, combine);
+    shared variable pos: integer range 0 to 13;       -- Position in the input row we are currently looking at
+    shared variable nhits_tmp : integer range 0 to 3; -- Helper variable used in combine state
     signal state : StateType;
+    signal rowbuf : std_logic_vector(13 downto 0); -- Cache of the input row
 
+    signal node0 : std_logic_vector(1 downto 0); -- One node signal for each of the 7
+    signal node1 : std_logic_vector(1 downto 0); -- nodes of the binary tree.
+    signal node2 : std_logic_vector(1 downto 0); -- Node 0 is the root node,
+    signal node3 : std_logic_vector(1 downto 0); -- nodes 1 and 2 are on tier 1
+    signal node4 : std_logic_vector(1 downto 0); -- 3-6 are on tier 2
+    signal node5 : std_logic_vector(1 downto 0);
+    signal node6 : std_logic_vector(1 downto 0);
 begin
-    state_proc:process(row, clk, state) begin
+    state_proc:process(clk) begin
         if rising_edge(clk) then
             case state is
+                when idle =>
+                    if (go='1') then
+                        state <= start;
+                    end if;
                 when start =>
+                    -- Cache the input row
+                    rowbuf <= row;
+
                     -- Initialize all nodes to zero,
                     -- set the position to the start
                     -- (13 == most significant bit
                     -- of the 14-bit input)
-                    pos:=13;
                     node0 <= "00";
                     node1 <= "00";
                     node2 <= "00";
@@ -72,6 +79,9 @@ begin
                     node4 <= "00";
                     node5 <= "00";
                     node6 <= "00";
+                    pos:=13;
+
+                    -- Start decoding
                     state <= tier0;
                  when tier0 =>
                     -- In tier 0, there is only one node,
@@ -79,10 +89,10 @@ begin
                     -- The if/else block checks if the next symbol
                     -- has 1 bits (in which case it starts with '0')
                     -- or two bits (in which case it starts with '1')
-                    if (row(pos)='0') then
+                    if (rowbuf(pos)='0') then
                         node0 <= "01";
                         pos := pos-1;
-                     elsif (row(pos-1)='1') then
+                     elsif (rowbuf(pos-1)='1') then
                         node0<= "11";
                         pos := pos-2;
                      else
@@ -100,10 +110,10 @@ begin
                     -- says that the given node *should* be filled.
                     if (node0(1)='1') and (node1="00") then
                         -- Fill node 1
-                        if (row(pos)='0') then
+                        if (rowbuf(pos)='0') then
                             node1 <= "01";
                             pos := pos-1;
-                        elsif (row(pos-1)='1') then
+                        elsif (rowbuf(pos-1)='1') then
                             node1<= "11";
                             pos := pos-2;
                         else
@@ -119,10 +129,10 @@ begin
                         end if;
                     elsif (node0(0)='1') and (node2="00") then
                      -- Fill node 2
-                        if (row(pos)='0') then
+                        if (rowbuf(pos)='0') then
                             node2 <= "01";
                             pos := pos-1;
-                         elsif (row(pos-1)='1') then
+                         elsif (rowbuf(pos-1)='1') then
                             node2<= "11";
                             pos := pos-2;
                          else
@@ -139,10 +149,10 @@ begin
                      -- two parent nodes.
                     if (node1(1)='1') and (node3="00") then
                      -- Fill node 3
-                        if (row(pos)='0') then
+                        if (rowbuf(pos)='0') then
                             node3 <= "01";
                             pos := pos-1;
-                         elsif (row(pos-1)='1') then
+                         elsif (rowbuf(pos-1)='1') then
                             node3<= "11";
                             pos := pos-2;
                          else
@@ -158,10 +168,10 @@ begin
                         end if;
                     elsif (node1(0)='1') and (node4="00") then
                      -- Fill node 4
-                        if (row(pos)='0') then
+                        if (rowbuf(pos)='0') then
                             node4 <= "01";
                             pos := pos-1;
-                         elsif (row(pos-1)='1') then
+                         elsif (rowbuf(pos-1)='1') then
                             node4<= "11";
                             pos := pos-2;
                          else
@@ -177,10 +187,10 @@ begin
                          end if;
                      elsif (node2(1)='1') and (node5="00") then
                         -- Fill node 5
-                        if (row(pos)='0') then
+                        if (rowbuf(pos)='0') then
                             node5 <= "01";
                             pos := pos-1;
-                         elsif (row(pos-1)='1') then
+                         elsif (rowbuf(pos-1)='1') then
                             node5 <= "11";
                             pos := pos-2;
                          else
@@ -196,10 +206,10 @@ begin
                         end if;
                      elsif (node2(0)='1') and (node6="00") then
                         -- Fill node 6
-                        if (row(pos)='0') then
+                        if (rowbuf(pos)='0') then
                             node6 <= "01";
                             pos := pos-1;
-                         elsif (row(pos-1)='1') then
+                         elsif (rowbuf(pos-1)='1') then
                             node6<= "11";
                             pos := pos-2;
                          else
@@ -239,6 +249,7 @@ begin
                     nbits <= std_logic_vector(to_unsigned(13-pos, nbits'length));
 
                     -- Set the rdy signal to let the world know we are done
+                    state <= idle;
                     rdy <= '1';
                   when others =>
                     state <= start;
