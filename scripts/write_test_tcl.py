@@ -17,11 +17,11 @@ for k, v in Enc8.items():
     nhits = k.count("1")
     text = text + dedent(
         f'''
-        add_force {{/rowdecode/row}} -radix bin {{{row} 0ns}}
-        add_force {{/rowdecode/clk}} -radix hex {{0 0ns}} {{1 5000ps}} -repeat_every 10000ps
+        add_force {{/tb_rowdecode/row0}} -radix bin {{{row} 0ns}}
+        add_force {{/tb_rowdecode/clk}} -radix hex {{0 0ns}} {{1 5000ps}} -repeat_every 10000ps
         run 1000ns
 
-        puts $fp "[get_value -radix bin row] [get_value -radix bin rdy] [get_value -radix bin state] [get_value -radix unsigned pos] [get_value -radix unsigned nbits]/{nbits} [get_value -radix unsigned nhits]/{nhits}"
+        puts $fp "[get_value -radix bin row0] [get_value -radix bin rdy0] [get_value -radix bin nhits0]/{nhits:04b} [get_value -radix bin nbits0]/{nbits:04b}"
         restart
         ''')
 
