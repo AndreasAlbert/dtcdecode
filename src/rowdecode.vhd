@@ -33,7 +33,7 @@ use ieee.std_logic_unsigned.all;
 entity rowdecode is port(
     row: in std_logic_vector(13 downto 0); -- Binary tree encoded input row information we want to decode
     clk: in std_logic; 
-    go: in std_logic; -- Start decoding if in idle state
+    reset: in std_logic; -- Start decoding if in idle state
 
     rdy: out std_logic;                      -- Flag to say we are done decoding
     nhits: out std_logic_vector(3 downto 0); -- Decoding output: Number of hits in the row (1-8)
@@ -43,7 +43,7 @@ entity rowdecode is port(
 end rowdecode;
 
 architecture Behavioral of rowdecode is
-    type StateType is (idle, start, tier0, tier1, tier2, combine);
+    type StateType is (start, tier0, tier1, tier2, combine);
     shared variable pos: integer range 0 to 13;       -- Position in the input row we are currently looking at
     shared variable nhits_tmp : integer range 0 to 3; -- Helper variable used in combine state
     signal state : StateType;
@@ -59,201 +59,201 @@ architecture Behavioral of rowdecode is
 begin
     state_proc:process(clk) begin
         if rising_edge(clk) then
-            case state is
-                when idle =>
-                    if (go='1') then
-                        state <= start;
-                    end if;
-                when start =>
-                    -- Cache the input row
-                    rowbuf <= row;
+            if(reset='1') then
+                state <= start;
+            else
+                case state is
+                    when start =>
+                        -- Cache the input row
+                        rowbuf <= row;
 
-                    -- Initialize all nodes to zero,
-                    -- set the position to the start
-                    -- (13 == most significant bit
-                    -- of the 14-bit input)
-                    node0 <= "00";
-                    node1 <= "00";
-                    node2 <= "00";
-                    node3 <= "00";
-                    node4 <= "00";
-                    node5 <= "00";
-                    node6 <= "00";
-                    pos:=13;
+                        -- Initialize all nodes to zero,
+                        -- set the position to the start
+                        -- (13 == most significant bit
+                        -- of the 14-bit input)
+                        node0 <= "00";
+                        node1 <= "00";
+                        node2 <= "00";
+                        node3 <= "00";
+                        node4 <= "00";
+                        node5 <= "00";
+                        node6 <= "00";
+                        pos:=13;
 
-                    -- Start decoding
-                    state <= tier0;
-                 when tier0 =>
-                    -- In tier 0, there is only one node,
-                    -- so no ambiguity.
-                    -- The if/else block checks if the next symbol
-                    -- has 1 bits (in which case it starts with '0')
-                    -- or two bits (in which case it starts with '1')
-                    if (rowbuf(pos)='0') then
-                        node0 <= "01";
-                        pos := pos-1;
-                     elsif (rowbuf(pos-1)='1') then
-                        node0<= "11";
-                        pos := pos-2;
-                     else
-                        node0<="10";
-                        pos := pos-2;
-                     end if;
-
-                     state <= tier1;
-                 when tier1 =>
-                    -- Same as tier0, except we now have to
-                    -- check which node to write to, as there are
-                    -- two nodes on this layer. The decision is based
-                    -- on whether the respective nodes have already
-                    -- been filled and whether or not the parent node
-                    -- says that the given node *should* be filled.
-                    if (node0(1)='1') and (node1="00") then
-                        -- Fill node 1
+                        -- Start decoding
+                        state <= tier0;
+                    when tier0 =>
+                        -- In tier 0, there is only one node,
+                        -- so no ambiguity.
+                        -- The if/else block checks if the next symbol
+                        -- has 1 bits (in which case it starts with '0')
+                        -- or two bits (in which case it starts with '1')
                         if (rowbuf(pos)='0') then
-                            node1 <= "01";
+                            node0 <= "01";
                             pos := pos-1;
                         elsif (rowbuf(pos-1)='1') then
-                            node1<= "11";
+                            node0<= "11";
                             pos := pos-2;
                         else
-                            node1<="10";
+                            node0<="10";
                             pos := pos-2;
                         end if;
 
-                        -- Shortcut to tier 2
-                        if(node0(0)='1') then
-                            state <= tier1;
+                        state <= tier1;
+                    when tier1 =>
+                        -- Same as tier0, except we now have to
+                        -- check which node to write to, as there are
+                        -- two nodes on this layer. The decision is based
+                        -- on whether the respective nodes have already
+                        -- been filled and whether or not the parent node
+                        -- says that the given node *should* be filled.
+                        if (node0(1)='1') and (node1="00") then
+                            -- Fill node 1
+                            if (rowbuf(pos)='0') then
+                                node1 <= "01";
+                                pos := pos-1;
+                            elsif (rowbuf(pos-1)='1') then
+                                node1<= "11";
+                                pos := pos-2;
+                            else
+                                node1<="10";
+                                pos := pos-2;
+                            end if;
+
+                            -- Shortcut to tier 2
+                            if(node0(0)='1') then
+                                state <= tier1;
+                            else
+                                state <= tier2;
+                            end if;
+                        elsif (node0(0)='1') and (node2="00") then
+                        -- Fill node 2
+                            if (rowbuf(pos)='0') then
+                                node2 <= "01";
+                                pos := pos-1;
+                            elsif (rowbuf(pos-1)='1') then
+                                node2<= "11";
+                                pos := pos-2;
+                            else
+                                node2<="10";
+                                pos := pos-2;
+                            end if;
+                            state <= tier2;
                         else
                             state <= tier2;
                         end if;
-                    elsif (node0(0)='1') and (node2="00") then
-                     -- Fill node 2
-                        if (rowbuf(pos)='0') then
-                            node2 <= "01";
-                            pos := pos-1;
-                         elsif (rowbuf(pos-1)='1') then
-                            node2<= "11";
-                            pos := pos-2;
-                         else
-                            node2<="10";
-                            pos := pos-2;
-                         end if;
-                         state <= tier2;
-                     else
-                         state <= tier2;
-                     end if;
-                  when tier2 =>
-                     -- Same as tier1, except there are now
-                     -- four possible nodes, descending from
-                     -- two parent nodes.
-                    if (node1(1)='1') and (node3="00") then
-                     -- Fill node 3
-                        if (rowbuf(pos)='0') then
-                            node3 <= "01";
-                            pos := pos-1;
-                         elsif (rowbuf(pos-1)='1') then
-                            node3<= "11";
-                            pos := pos-2;
-                         else
-                            node3<="10";
-                            pos := pos-2;
-                         end if;
+                    when tier2 =>
+                        -- Same as tier1, except there are now
+                        -- four possible nodes, descending from
+                        -- two parent nodes.
+                        if (node1(1)='1') and (node3="00") then
+                        -- Fill node 3
+                            if (rowbuf(pos)='0') then
+                                node3 <= "01";
+                                pos := pos-1;
+                            elsif (rowbuf(pos-1)='1') then
+                                node3<= "11";
+                                pos := pos-2;
+                            else
+                                node3<="10";
+                                pos := pos-2;
+                            end if;
 
-                        -- Shortcut to end
-                        if(node1(0)='0') and (node2="00") then
+                            -- Shortcut to end
+                            if(node1(0)='0') and (node2="00") then
+                                state <= combine;
+                            else
+                                state <= tier2;
+                            end if;
+                        elsif (node1(0)='1') and (node4="00") then
+                        -- Fill node 4
+                            if (rowbuf(pos)='0') then
+                                node4 <= "01";
+                                pos := pos-1;
+                            elsif (rowbuf(pos-1)='1') then
+                                node4<= "11";
+                                pos := pos-2;
+                            else
+                                node4<="10";
+                                pos := pos-2;
+                            end if;
+
+                            -- Shortcut to end
+                            if(node2="00") then
+                                state <= combine;
+                            else
+                                state <= tier2;
+                            end if;
+                        elsif (node2(1)='1') and (node5="00") then
+                            -- Fill node 5
+                            if (rowbuf(pos)='0') then
+                                node5 <= "01";
+                                pos := pos-1;
+                            elsif (rowbuf(pos-1)='1') then
+                                node5 <= "11";
+                                pos := pos-2;
+                            else
+                                node5<="10";
+                                pos := pos-2;
+                            end if;
+                            state <= tier2;
+                            -- Shortcut to end
+                            if(node2(0)='0') then
+                                state <= combine;
+                            else
+                                state <= tier2;
+                            end if;
+                        elsif (node2(0)='1') and (node6="00") then
+                            -- Fill node 6
+                            if (rowbuf(pos)='0') then
+                                node6 <= "01";
+                                pos := pos-1;
+                            elsif (rowbuf(pos-1)='1') then
+                                node6<= "11";
+                                pos := pos-2;
+                            else
+                                node6<="10";
+                                pos := pos-2;
+                            end if;
                             state <= combine;
                         else
-                            state <= tier2;
-                        end if;
-                    elsif (node1(0)='1') and (node4="00") then
-                     -- Fill node 4
-                        if (rowbuf(pos)='0') then
-                            node4 <= "01";
-                            pos := pos-1;
-                         elsif (rowbuf(pos-1)='1') then
-                            node4<= "11";
-                            pos := pos-2;
-                         else
-                            node4<="10";
-                            pos := pos-2;
-                         end if;
-
-                         -- Shortcut to end
-                         if(node2="00") then
-                             state <= combine;
-                         else
-                             state <= tier2;
-                         end if;
-                     elsif (node2(1)='1') and (node5="00") then
-                        -- Fill node 5
-                        if (rowbuf(pos)='0') then
-                            node5 <= "01";
-                            pos := pos-1;
-                         elsif (rowbuf(pos-1)='1') then
-                            node5 <= "11";
-                            pos := pos-2;
-                         else
-                            node5<="10";
-                            pos := pos-2;
-                         end if;
-                         state <= tier2;
-                         -- Shortcut to end
-                         if(node2(0)='0') then
                             state <= combine;
-                        else
-                            state <= tier2;
                         end if;
-                     elsif (node2(0)='1') and (node6="00") then
-                        -- Fill node 6
-                        if (rowbuf(pos)='0') then
-                            node6 <= "01";
-                            pos := pos-1;
-                         elsif (rowbuf(pos-1)='1') then
-                            node6<= "11";
-                            pos := pos-2;
-                         else
-                            node6<="10";
-                            pos := pos-2;
-                         end if;
-                         state <= combine;
-                     else
-                         state <= combine;
-                     end if;
-                  when combine =>
-                    -- All nodes have been filled.
-                    -- Derive the quantities we are interestd in
+                    when combine =>
+                        -- All nodes have been filled.
+                        -- Derive the quantities we are interestd in
 
-                    -- The number of hits in the row is equal
-                    -- to the number of '1's in the 4 nodes of
-                    -- tier2.
-                    nhits_tmp := 0;
-                    for i in 0 to 1 loop
-                        if node3(i) = '1' then
-                            nhits_tmp := nhits_tmp + 1;
-                        end if;
-                        if node4(i) = '1' then
-                            nhits_tmp := nhits_tmp + 1;
-                        end if;
-                        if node5(i) = '1' then
-                            nhits_tmp := nhits_tmp + 1;
-                        end if;
-                        if node6(i) = '1' then
-                            nhits_tmp := nhits_tmp + 1;
-                        end if;
-                    end loop;
-                    nhits <= std_logic_vector(to_unsigned(nhits_tmp, nhits'length));
+                        -- The number of hits in the row is equal
+                        -- to the number of '1's in the 4 nodes of
+                        -- tier2.
+                        nhits_tmp := 0;
+                        for i in 0 to 1 loop
+                            if node3(i) = '1' then
+                                nhits_tmp := nhits_tmp + 1;
+                            end if;
+                            if node4(i) = '1' then
+                                nhits_tmp := nhits_tmp + 1;
+                            end if;
+                            if node5(i) = '1' then
+                                nhits_tmp := nhits_tmp + 1;
+                            end if;
+                            if node6(i) = '1' then
+                                nhits_tmp := nhits_tmp + 1;
+                            end if;
+                        end loop;
+                        nhits <= std_logic_vector(to_unsigned(nhits_tmp, nhits'length));
 
-                    -- The length of the encoded row in bits is given by the
-                    -- value of the 'pos' variable.
-                    nbits <= std_logic_vector(to_unsigned(13-pos, nbits'length));
+                        -- The length of the encoded row in bits is given by the
+                        -- value of the 'pos' variable.
+                        nbits <= std_logic_vector(to_unsigned(13-pos, nbits'length));
 
-                    -- Set the rdy signal to let the world know we are done
-                    state <= idle;
-                    rdy <= '1';
-                  when others =>
-                    state <= start;
-             end case;
-        end if;
+                        -- Set the rdy signal to let the world know we are done
+                        state <= start;
+                        rdy <= '1';
+                    when others =>
+                        state <= start;
+                end case;
+            end if; -- reset
+        end if; -- clk rising edge
     end process state_proc;
 end Behavioral;

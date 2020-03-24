@@ -18,7 +18,8 @@ set_property PACKAGE_PIN AY30 [get_ports row0[10]]
 set_property PACKAGE_PIN AY31 [get_ports row0[11]]
 set_property PACKAGE_PIN BB32 [get_ports row0[12]]
 set_property PACKAGE_PIN AV30 [get_ports row0[13]]
-
+# Reset switch
+set_property PACKAGE_PIN E28 [get_ports reset0]
 
 # OUTPUT
 # decoder ready flag

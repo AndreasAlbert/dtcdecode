@@ -11,6 +11,7 @@ port (
     clk : in std_logic;
     row0 : in std_logic_vector(13 downto 0);    -- Input row, will be passed to decoder
     rdy0 : out std_logic;                       -- ready flag of the decoder
+    reset0 : in std_logic;                     -- reset switch of the decoder
     nhits0 : out std_logic_vector(3 downto 0);  -- Decoding output
     nbits0 : out std_logic_vector(3 downto 0)   -- Decoding output
 );
@@ -43,9 +44,9 @@ rowdecoder0: entity work.rowdecode
         row => row0,
         clk => clk_bufg,
         rdy => rdy0,
+        reset => reset0,
         nhits => nhits0,
-        nbits => nbits0,
-        go=>'1'
+        nbits => nbits0
         );
 
 
