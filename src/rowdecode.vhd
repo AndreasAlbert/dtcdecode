@@ -33,7 +33,7 @@ use ieee.std_logic_unsigned.all;
 entity rowdecode is port(
     row: in std_logic_vector(13 downto 0); -- Binary tree encoded input row information we want to decode
     clk: in std_logic; 
-    reset: in std_logic; -- Start decoding if in idle state
+    reset: in std_logic; -- Reset state to start
 
     rdy: out std_logic;                      -- Flag to say we are done decoding
     nhits: out std_logic_vector(3 downto 0); -- Decoding output: Number of hits in the row (1-8)
@@ -43,7 +43,7 @@ entity rowdecode is port(
 end rowdecode;
 
 architecture Behavioral of rowdecode is
-    type StateType is (start, tier0, tier1, tier2, combine);
+    type StateType is (start, tier0, tier1, tier2, combine, idle);
     shared variable pos: integer range 0 to 13;       -- Position in the input row we are currently looking at
     shared variable nhits_tmp : integer range 0 to 3; -- Helper variable used in combine state
     signal state : StateType;
@@ -78,8 +78,10 @@ begin
                         node4 <= "00";
                         node5 <= "00";
                         node6 <= "00";
+                        rdy <= '0';
+                        nhits <= "0000";
+                        nbits <= "0000";
                         pos:=13;
-
                         -- Start decoding
                         state <= tier0;
                     when tier0 =>
@@ -248,8 +250,10 @@ begin
                         nbits <= std_logic_vector(to_unsigned(13-pos, nbits'length));
 
                         -- Set the rdy signal to let the world know we are done
-                        state <= start;
+                        state <= idle;
                         rdy <= '1';
+                    when idle =>
+                        state <= idle;
                     when others =>
                         state <= start;
                 end case;

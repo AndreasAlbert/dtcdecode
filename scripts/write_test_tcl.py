@@ -6,6 +6,16 @@ from encoder import Enc8
 
 text = dedent(
     '''
+    read_vhdl src/rowdecode.vhd
+    read_vhdl src/tb_rowdecode.vhd
+    read_xdc constraints/constraint_test.xdc
+
+    set_property top_file src/tb_rowdecode.vhd [current_fileset -simset]
+    set_property top tb_rowdecode [current_fileset -simset]
+    save_project_as tmp_project -force
+
+
+
     set fp [open test.txt w]
     launch_sim
     '''
@@ -18,7 +28,9 @@ for k, v in Enc8.items():
     text = text + dedent(
         f'''
         add_force {{/tb_rowdecode/row0}} -radix bin {{{row} 0ns}}
-        add_force {{/tb_rowdecode/clk}} -radix hex {{0 0ns}} {{1 5000ps}} -repeat_every 10000ps
+        add_force {{/tb_rowdecode/clk}} -radix hex {{0 0ns}} {{1 5ns}} -repeat_every 10ns
+        add_force {{/tb_rowdecode/reset0}} {{1 0ns}} {{0 10ns}}
+
         run 1000ns
 
         puts $fp "[get_value -radix bin row0] [get_value -radix bin rdy0] [get_value -radix bin nhits0]/{nhits:04b} [get_value -radix bin nbits0]/{nbits:04b}"
