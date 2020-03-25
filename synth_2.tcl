@@ -7,12 +7,12 @@ synth_design -top tb_rowdecode -part xcku15p-ffva1760-1-e
 
 write_checkpoint -force post_synth
 
-# opt_design
-# power_opt_design
-# place_design
-# phys_opt_design
-# route_design -directive Explore
+opt_design
+power_opt_design
+place_design
+phys_opt_design
+route_design -directive Explore
 
-# write_checkpoint -force post_implement
+write_checkpoint -force post_implement
 
 
