@@ -19,6 +19,7 @@
 ----------------------------------------------------------------------------------
 
 
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
@@ -30,6 +31,7 @@ use ieee.std_logic_unsigned.all;
 -- any Xilinx leaf cells in this code.
 --library UNISIM;
 --use UNISIM.VComponents.all;
+
 entity rowdecode is port(
     row: in std_logic_vector(13 downto 0); -- Binary tree encoded input row information we want to decode
     clk: in std_logic; 
@@ -45,7 +47,6 @@ end rowdecode;
 architecture Behavioral of rowdecode is
     type StateType is (start, tier0, tier1, tier2, combine, idle);
     shared variable pos: integer range 0 to 13;       -- Position in the input row we are currently looking at
-    shared variable nhits_tmp : integer range 0 to 3; -- Helper variable used in combine state
     signal state : StateType;
     signal rowbuf : std_logic_vector(13 downto 0); -- Cache of the input row
 
@@ -56,6 +57,18 @@ architecture Behavioral of rowdecode is
     signal node4 : std_logic_vector(1 downto 0); -- 3-6 are on tier 2
     signal node5 : std_logic_vector(1 downto 0);
     signal node6 : std_logic_vector(1 downto 0);
+
+    -- Helper function to count the number of bits set to one
+    function count_1s(data : std_logic_vector) return integer is
+        variable n_1s : integer :=0;
+        begin
+            for i in data'range loop
+                if data(i) = '1' then
+                    n_1s := n_1s + 1;
+                end if;
+            end loop;
+            return n_1s;
+    end function count_1s;
 begin
     state_proc:process(clk) begin
         if rising_edge(clk) then
@@ -225,25 +238,11 @@ begin
                         -- All nodes have been filled.
                         -- Derive the quantities we are interestd in
 
+
                         -- The number of hits in the row is equal
                         -- to the number of '1's in the 4 nodes of
                         -- tier2.
-                        nhits_tmp := 0;
-                        for i in 0 to 1 loop
-                            if node3(i) = '1' then
-                                nhits_tmp := nhits_tmp + 1;
-                            end if;
-                            if node4(i) = '1' then
-                                nhits_tmp := nhits_tmp + 1;
-                            end if;
-                            if node5(i) = '1' then
-                                nhits_tmp := nhits_tmp + 1;
-                            end if;
-                            if node6(i) = '1' then
-                                nhits_tmp := nhits_tmp + 1;
-                            end if;
-                        end loop;
-                        nhits <= std_logic_vector(to_unsigned(nhits_tmp, nhits'length));
+                        nhits <= std_logic_vector(to_unsigned(count_1s(node3 & node4 & node5 & node6), nhits'length));
 
                         -- The length of the encoded row in bits is given by the
                         -- value of the 'pos' variable.
