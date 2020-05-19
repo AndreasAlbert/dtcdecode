@@ -73,123 +73,127 @@ begin
     );
     state_proc:process(clk) begin
         if rising_edge(clk) then
-            --- Assumption: 
-            --- At every clock tick, we might receive a new input 64-bit block
-            --- If so, we shift our current buffer by one block length
-            --- and insert the new block
-            --- TODO: Handle case where pos < 64, i.e. we are being too slow!
-            if(newblockin='1') then
-                buf <= buf(191 downto 0) & (63 downto 0 => '0');
-                buf(63 downto 0) <= blockin(63 downto 0);
-                pos := pos+64;
-            end if;
 
             if(reset='1') then
                 --- Reset buffer and position, go to start
                 buf <= (others => '0');
-                pos := 255;
+                pos := 0;
                 state <= newevent;
             else
-                case state is
-                    when newevent =>
-                        -- Initialization
-                        islast<='0';
-                        isneighbor<='0';
-                        tworows<='0';
-                        total_nhits <= (others => '0');
+                --- Assumption: 
+                --- At every clock tick, we might receive a new input 64-bit block
+                --- If so, we shift our current buffer by one block length
+                --- and insert the new block
+                --- TODO: Handle case where pos < 64, i.e. we are being too slow!
+                if(newblockin='1') then
+                    buf <= buf(191 downto 0) & (63 downto 0 => '0');
+                    buf(63 downto 0) <= blockin(63 downto 0);
+                    pos := pos+63;
+                end if;
 
-                        -- Events always start with an 8-bit tag
-                        tag <= buf(pos downto pos-8);
-                        pos := pos-8;
+                if(pos>0) then
 
-                        -- Which is followed by either another tag
-                        -- or a ccol address. Tell them apart by first
-                        -- three indicator bits
-                        if(buf(pos downto pos-3) = "111") then
-                            ---Tag followed by new tag -> Empty event!
-                            pos := pos-3;
-                            state <= newevent;
-                        else
-                            state <= newqcore;
-                        end if;
-                    when newqcore =>
-                            -- Skip 6-bit ccol address
-                            if (islast='0') then
-                                pos := pos-6;
-                            end if;
+                    case state is
+                        when newevent =>
+                            -- Initialization
+                            islast<='0';
+                            isneighbor<='0';
+                            tworows<='0';
+                            total_nhits <= (others => '0');
 
-                            -- Read 1-bit islast
-                            islast <= buf(pos);
-                            pos := pos - 1;
-                            
-                            -- Read 1-bit isneighbor
-                            isneighbor <= buf(pos);
-                            pos := pos - 1;
+                            -- Events always start with an 8-bit tag
+                            tag <= buf(pos downto pos-7);
+                            pos := pos-8;
 
-                            if (isneighbor='0') then
-                                -- Skip 8-bit qrow address
-                                pos := pos - 8;
-                            end if;
-
-                            -- We have arrived at the hit map
-                            -- The following bits tell us how many rows there are
-                            -- "0" or "10" -> 1 row
-                            -- "11" -> 2 rows
-                            if (buf(pos)='0') then
-                                tworows <= '0';
-                                pos := pos-1;
-                            elsif (buf(pos downto pos-1)="10") then
-                                tworows <= '0';
-                                pos := pos - 2;
+                            -- Which is followed by either another tag
+                            -- or a ccol address. Tell them apart by first
+                            -- three indicator bits
+                            if(buf(pos downto pos-3) = "111") then
+                                ---Tag followed by new tag -> Empty event!
+                                pos := pos-3;
+                                state <= newevent;
                             else
-                                tworows <= '1';
-                                pos := pos - 2;
+                                state <= newqcore;
                             end if;
-                            
-                            -- Feed the first row into the
-                            -- decoder and start waiting for output
-                            rd_row <= buf(pos downto pos-14);
-                            rd_reset <= '1';
-                            state <= waitrow;
-                    when waitrow =>
-                        rd_reset <= '0';
-                        if(rd_rdy = '0') then
-                            -- Decoder not done yet, nothing to be done
-                            state <= waitrow;
-                        else
-                            -- Decoder has finished
-                            -- Skip the bits of the already decoded hitmap
-                            pos := pos - conv_integer(rd_nbits); --to_unsigned(rd_nbits, pos'length);
-                            -- Add the number of hits to the total
-                            total_nhits <= total_nhits + unsigned(rd_nhits);--, total_nhits'length);
-                            -- Next action depends on whether or not there is 
-                            -- another row to decode
-                            if (tworows = '0') then
-                                -- This was the last row, so it's time
-                                -- to skip the ToTs
-                                pos := pos - 4*conv_integer(std_logic_vector(total_nhits));
-                                total_nhits <= (others => '0');
-                                -- And move on to next event or qcore
-                                if( buf(pos downto pos-3)="111") then
-                                    pos := pos - 3;
-                                    state <= newevent;
-                                else
-                                    state <= newqcore;
+                        when newqcore =>
+                                -- Skip 6-bit ccol address
+                                if (islast='0') then
+                                    pos := pos-6;
                                 end if;
-                            else
-                                -- This was the first of two rows
-                                -- so start decoding the second one
-                                tworows <= '0';
-                                rd_row <= buf(pos downto pos-14);
+
+                                -- Read 1-bit islast
+                                islast <= buf(pos);
+                                pos := pos - 1;
+                                
+                                -- Read 1-bit isneighbor
+                                isneighbor <= buf(pos);
+                                pos := pos - 1;
+
+                                if (isneighbor='0') then
+                                    -- Skip 8-bit qrow address
+                                    pos := pos - 8;
+                                end if;
+
+                                -- We have arrived at the hit map
+                                -- The following bits tell us how many rows there are
+                                -- "0" or "10" -> 1 row
+                                -- "11" -> 2 rows
+                                if (buf(pos)='0') then
+                                    tworows <= '0';
+                                    pos := pos-1;
+                                elsif (buf(pos downto pos-1)="10") then
+                                    tworows <= '0';
+                                    pos := pos - 2;
+                                else
+                                    tworows <= '1';
+                                    pos := pos - 2;
+                                end if;
+                                
+                                -- Feed the first row into the
+                                -- decoder and start waiting for output
+                                rd_row <= buf(pos downto pos-13);
                                 rd_reset <= '1';
                                 state <= waitrow;
+                        when waitrow =>
+                            rd_reset <= '0';
+                            if(rd_rdy = '0') then
+                                -- Decoder not done yet, nothing to be done
+                                state <= waitrow;
+                            else
+                                -- Decoder has finished
+                                -- Skip the bits of the already decoded hitmap
+                                pos := pos - conv_integer(rd_nbits); --to_unsigned(rd_nbits, pos'length);
+                                -- Add the number of hits to the total
+                                total_nhits <= total_nhits + unsigned(rd_nhits);--, total_nhits'length);
+                                -- Next action depends on whether or not there is 
+                                -- another row to decode
+                                if (tworows = '0') then
+                                    -- This was the last row, so it's time
+                                    -- to skip the ToTs
+                                    pos := pos - 4*conv_integer(std_logic_vector(total_nhits));
+                                    total_nhits <= (others => '0');
+                                    -- And move on to next event or qcore
+                                    if( buf(pos downto pos-3)="111") then
+                                        pos := pos - 3;
+                                        state <= newevent;
+                                    else
+                                        state <= newqcore;
+                                    end if;
+                                else
+                                    -- This was the first of two rows
+                                    -- so start decoding the second one
+                                    tworows <= '0';
+                                    rd_row <= buf(pos downto pos-13);
+                                    rd_reset <= '1';
+                                    state <= waitrow;
+                                end if;
                             end if;
-                        end if;
-                    when idle =>
-                        state <= idle;
-                    when others =>
-                        state <= newevent;
-                end case;
+                        when idle =>
+                            state <= idle;
+                        when others =>
+                            state <= newevent;
+                    end case;
+                end if; --pos!=0
             end if; -- reset
         end if; -- clk rising edge
     end process state_proc;
