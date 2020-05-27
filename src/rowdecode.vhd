@@ -73,6 +73,8 @@ begin
     state_proc:process(clk) begin
         if rising_edge(clk) then
             if(reset='1') then
+                -- Disable rdy flag and go to start
+                rdy <= '0';
                 state <= start;
             else
                 case state is
