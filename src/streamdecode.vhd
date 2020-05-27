@@ -33,10 +33,11 @@ use ieee.std_logic_unsigned.all;
 --use UNISIM.VComponents.all;
 
 entity streamdecode is port(
-    blockin: in std_logic_vector(63 downto 0); -- Binary tree encoded input row information we want to decode
-    newblockin: in std_logic;
-    clk: in std_logic; 
-    reset: in std_logic -- Reset state to start
+    data: in std_logic_vector(63 downto 0); -- Binary tree encoded input row information we want to decode
+    datavalid: in std_logic;
+    clk: in std_logic;
+    reset: in std_logic; -- Reset state to start
+    dbg_pos: out integer range 0 to 255
     );
 --  Port ( );
 end streamdecode;
@@ -46,19 +47,20 @@ architecture Behavioral of streamdecode is
     shared variable pos: integer range 0 to 255;  -- Position in the input row we are currently looking at
     signal state : StateType;
     signal buf : std_logic_vector(255 downto 0); -- Cache of inputs
+    signal buf_empty : std_logic; -- Cache of inputs
 
     signal tworows : std_logic;                 -- Whether the current qcore has two rows. If not, it is assumed that it has one
     signal islast : std_logic;                  -- The 'islast' bit for the current qcore. If true, next qcore will have ccol field
     signal isneighbor : std_logic;              -- The 'isneighbor' bit for the current qcore. If true, next qcore will not have qrow field
     signal tag : std_logic_vector(7 downto 0);  -- Tag for the current event
-    
+
     -- I/O signals for row decoder
     signal rd_reset: std_logic;                    -- Reset state to start
     signal rd_rdy:   std_logic;                    -- Flag to say we are done decoding
     signal rd_nhits: std_logic_vector(3 downto 0); -- Decoding output: Number of hits in the row (1-8)
     signal rd_nbits: std_logic_vector(3 downto 0);  -- Decoding output: Number of bits in the row (1-14)
-    signal rd_row: std_logic_vector(13 downto 0);  
-    
+    signal rd_row: std_logic_vector(13 downto 0);
+
     signal total_nhits: unsigned(16 downto 0); -- Sum of nhits over all rows in current qcore
 
 begin
@@ -73,33 +75,43 @@ begin
     );
     state_proc:process(clk) begin
         if rising_edge(clk) then
-
+            dbg_pos <= pos;
             if(reset='1') then
                 --- Reset buffer and position, go to start
                 buf <= (others => '0');
                 pos := 0;
-                state <= newevent;
+                buf_empty <= '1';
+                state <= idle;
             else
-                --- Assumption: 
+                --- Assumption:
                 --- At every clock tick, we might receive a new input 64-bit block
                 --- If so, we shift our current buffer by one block length
                 --- and insert the new block
                 --- TODO: Handle case where pos < 64, i.e. we are being too slow!
-                if(newblockin='1') then
+                if(datavalid='1') then
                     buf <= buf(191 downto 0) & (63 downto 0 => '0');
-                    buf(63 downto 0) <= blockin(63 downto 0);
-                    pos := pos+63;
+                    buf(63 downto 0) <= data(63 downto 0);
+                    if(pos=0) then
+                        pos := 63;
+                    else
+                        pos := pos+64;
+                    end if;
+                    buf_empty <= '0';
                 end if;
 
-                if(pos>0) then
-
+                if(buf_empty = '0') then
                     case state is
+                        when idle =>
+                            state <= newevent;
                         when newevent =>
                             -- Initialization
                             islast<='0';
                             isneighbor<='0';
                             tworows<='0';
                             total_nhits <= (others => '0');
+
+                            -- Skip new stream bit for now
+                            pos := pos-1;
 
                             -- Events always start with an 8-bit tag
                             tag <= buf(pos downto pos-7);
@@ -124,7 +136,7 @@ begin
                                 -- Read 1-bit islast
                                 islast <= buf(pos);
                                 pos := pos - 1;
-                                
+
                                 -- Read 1-bit isneighbor
                                 isneighbor <= buf(pos);
                                 pos := pos - 1;
@@ -148,15 +160,17 @@ begin
                                     tworows <= '1';
                                     pos := pos - 2;
                                 end if;
-                                
+
                                 -- Feed the first row into the
                                 -- decoder and start waiting for output
                                 rd_row <= buf(pos downto pos-13);
                                 rd_reset <= '1';
                                 state <= waitrow;
                         when waitrow =>
-                            rd_reset <= '0';
-                            if(rd_rdy = '0') then
+                            if(rd_reset = '1') then
+                                rd_reset <= '0';
+                                state <= waitrow;
+                            elsif(rd_rdy = '0') then
                                 -- Decoder not done yet, nothing to be done
                                 state <= waitrow;
                             else
@@ -165,7 +179,7 @@ begin
                                 pos := pos - conv_integer(rd_nbits); --to_unsigned(rd_nbits, pos'length);
                                 -- Add the number of hits to the total
                                 total_nhits <= total_nhits + unsigned(rd_nhits);--, total_nhits'length);
-                                -- Next action depends on whether or not there is 
+                                -- Next action depends on whether or not there is
                                 -- another row to decode
                                 if (tworows = '0') then
                                     -- This was the last row, so it's time
@@ -188,8 +202,6 @@ begin
                                     state <= waitrow;
                                 end if;
                             end if;
-                        when idle =>
-                            state <= idle;
                         when others =>
                             state <= newevent;
                     end case;
