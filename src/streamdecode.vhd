@@ -44,9 +44,9 @@ end streamdecode;
 
 architecture Behavioral of streamdecode is
     type StateType is (newevent, newqcore, waitrow, idle);
-    shared variable pos: integer range 0 to 255;  -- Position in the input row we are currently looking at
+    shared variable pos: integer range 0 to 251;  -- Position in the input row we are currently looking at
     signal state : StateType;
-    signal buf : std_logic_vector(255 downto 0); -- Cache of inputs
+    signal buf : std_logic_vector(251 downto 0); -- Cache of inputs, 4x63 bits
     signal buf_empty : std_logic; -- Cache of inputs
 
     signal tworows : std_logic;                 -- Whether the current qcore has two rows. If not, it is assumed that it has one
@@ -75,7 +75,6 @@ begin
     );
     state_proc:process(clk) begin
         if rising_edge(clk) then
-            dbg_pos <= pos;
             if(reset='1') then
                 --- Reset buffer and position, go to start
                 buf <= (others => '0');
@@ -89,13 +88,22 @@ begin
                 --- and insert the new block
                 --- TODO: Handle case where pos < 64, i.e. we are being too slow!
                 if(datavalid='1') then
-                    buf <= buf(191 downto 0) & (63 downto 0 => '0');
-                    buf(63 downto 0) <= data(63 downto 0);
+                    -- Shift left by 63 bits
+                    -- we currently ignore the leading bit of the input,
+                    -- which is the new stream bit
+                    -- TODO: handle new stream bit
+                    buf <= buf(188 downto 0) & (62 downto 0 => '0');
+
+                    -- Insert new block
+                    buf(62 downto 0) <= data(62 downto 0);
+
+                    -- Shfit position pointer
                     if(pos=0) then
-                        pos := 63;
+                        pos := 62;
                     else
-                        pos := pos+64;
+                        pos := pos+63;
                     end if;
+                    -- Signal that the buffer is not empty
                     buf_empty <= '0';
                 end if;
 
@@ -109,9 +117,6 @@ begin
                             isneighbor<='0';
                             tworows<='0';
                             total_nhits <= (others => '0');
-
-                            -- Skip new stream bit for now
-                            pos := pos-1;
 
                             -- Events always start with an 8-bit tag
                             tag <= buf(pos downto pos-7);
@@ -207,6 +212,7 @@ begin
                     end case;
                 end if; --pos!=0
             end if; -- reset
+            dbg_pos <= pos;
         end if; -- clk rising edge
     end process state_proc;
 end Behavioral;
