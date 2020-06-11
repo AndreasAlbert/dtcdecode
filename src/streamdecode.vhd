@@ -61,7 +61,7 @@ architecture Behavioral of streamdecode is
     signal rd_nbits: std_logic_vector(3 downto 0);  -- Decoding output: Number of bits in the row (1-14)
     signal rd_row: std_logic_vector(13 downto 0);
 
-    signal total_nhits: unsigned(16 downto 0); -- Sum of nhits over all rows in current qcore
+    shared variable total_nhits: integer range 0 to 16; -- Sum of nhits over all rows in current qcore
 
 begin
     rowdecoder: entity work.rowdecode
@@ -113,10 +113,15 @@ begin
                             state <= newevent;
                         when newevent =>
                             -- Initialization
-                            islast<='0';
+                            -- fine point: "islast" of the previous qcore
+                            -- tells you whether the upcoming qcore
+                            -- has a ccol address. Therefore, the starting
+                            -- value is "1": The first qcore always has it
+                            islast<='1';
+                            -- All other values are set to 0
                             isneighbor<='0';
                             tworows<='0';
-                            total_nhits <= (others => '0');
+                            total_nhits := 0;
 
                             -- Events always start with an 8-bit tag
                             tag <= buf(pos downto pos-7);
@@ -134,21 +139,23 @@ begin
                             end if;
                         when newqcore =>
                                 -- Skip 6-bit ccol address
-                                if (islast='0') then
+                                -- based on "islast" from previous qcore
+                                if (islast='1') then
                                     pos := pos-6;
                                 end if;
 
-                                -- Read 1-bit islast
+                                -- Read this qcore's 1-bit islast
                                 islast <= buf(pos);
                                 pos := pos - 1;
 
                                 -- Read 1-bit isneighbor
                                 isneighbor <= buf(pos);
-                                pos := pos - 1;
-
-                                if (isneighbor='0') then
-                                    -- Skip 8-bit qrow address
-                                    pos := pos - 8;
+                                if(buf(pos)='0') then
+                                    -- Skip 8-bit qrow address + 1 bit isneighbor
+                                    pos := pos - 9;
+                                else
+                                    -- Just one bit of isneighbor
+                                    pos := pos - 1;
                                 end if;
 
                                 -- We have arrived at the hit map
@@ -183,14 +190,14 @@ begin
                                 -- Skip the bits of the already decoded hitmap
                                 pos := pos - conv_integer(rd_nbits); --to_unsigned(rd_nbits, pos'length);
                                 -- Add the number of hits to the total
-                                total_nhits <= total_nhits + unsigned(rd_nhits);--, total_nhits'length);
+                                total_nhits := to_integer(to_unsigned(total_nhits, rd_nhits'length) + unsigned(rd_nhits));
                                 -- Next action depends on whether or not there is
                                 -- another row to decode
                                 if (tworows = '0') then
                                     -- This was the last row, so it's time
                                     -- to skip the ToTs
-                                    pos := pos - 4*conv_integer(std_logic_vector(total_nhits));
-                                    total_nhits <= (others => '0');
+                                    pos := pos - 4*total_nhits;
+                                    total_nhits := 0;
                                     -- And move on to next event or qcore
                                     if( buf(pos downto pos-3)="111") then
                                         pos := pos - 3;
