@@ -22,33 +22,60 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-
+use IEEE.math_real."ceil";
+use IEEE.math_real."log2";
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 use ieee.std_logic_unsigned.all;
+--use ieee.std_logic_signed.all;
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx leaf cells in this code.
 --library UNISIM;
---use UNISIM.VComponents.all;
 
-entity streamdecode is port(
-    data: in std_logic_vector(63 downto 0); -- Binary tree encoded input row information we want to decode
-    datavalid: in std_logic;
-    clk: in std_logic;
-    reset: in std_logic; -- Reset state to start
-    dbg_pos: out integer range 0 to 255
+use work.stream_util.all;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+entity streamdecode is
+    -- Adjustable parameters
+    generic(
+        bufsize: integer := 252; -- Buffer size. Default is 4 blocks, without NS bits -> 4*(64-1)
+        timeout: integer := 500 -- time to wait after last block before declaring stream finished
     );
---  Port ( );
+
+    -- I/O
+    port(
+        data:          in  std_logic_vector(63 downto 0);   -- One block of input stream data
+        datavalid_in:  in  std_logic;                       -- Flag indicating input data ready to read
+        datavalid_out: out std_logic;                       -- Flag indicating output data ready to read
+        clk:           in  std_logic;                       -- Clock
+        reset:         in  std_logic;                       -- Flag to trigger reset to starting state
+        block_out:     out std_logic_vector(62 downto 0);   -- One block of output stream data
+        evt_bounds_out: out pos_array(7 downto 0);              -- Array of event boundaries in output block
+        dbg_pos:       out integer range 0 to bufsize       -- FOR DEBUGGING ONLY: current position in the buffer
+
+    );
+
 end streamdecode;
 
 architecture Behavioral of streamdecode is
     type StateType is (newevent, newqcore, waitrow, idle);
-    shared variable pos: integer range 0 to 251;  -- Position in the input row we are currently looking at
-    signal state : StateType;
-    signal buf : std_logic_vector(251 downto 0); -- Cache of inputs, 4x63 bits
-    signal buf_empty : std_logic; -- Cache of inputs
+    type bufpos_array is array (natural range <>) of signed( integer(ceil(log2(real(bufsize)))) downto 0);
+    signal state : StateType;                               -- States
 
+
+    -- Buffer + I/O management
+    shared variable pos:           integer range 0 to bufsize-1;         -- Current position in the buffer
+    shared variable evt_bound_count:           integer range 0 to 8;         -- Current position in the buffer
+
+    signal buf :                   std_logic_vector(bufsize-1 downto 0); -- Cache of inputs, 4x63 bits
+    signal buf_empty :             std_logic;                            -- Flag to indicate whether buffer is empty
+    signal blocks_read :           integer range 0 to 4;                 -- Counter for the number of blocks processed since reset
+    signal time_since_last_block : integer range 0 to 511;               -- Counter for clock cycles since last block was read
+    signal evt_bounds:             bufpos_array(31 downto 0);            -- Array of event boundaries in buffer
+
+    -- Internal stream meta data
     signal tworows : std_logic;                 -- Whether the current qcore has two rows. If not, it is assumed that it has one
     signal islast : std_logic;                  -- The 'islast' bit for the current qcore. If true, next qcore will have ccol field
     signal isneighbor : std_logic;              -- The 'isneighbor' bit for the current qcore. If true, next qcore will not have qrow field
@@ -59,7 +86,7 @@ architecture Behavioral of streamdecode is
     signal rd_rdy:   std_logic;                    -- Flag to say we are done decoding
     signal rd_nhits: std_logic_vector(3 downto 0); -- Decoding output: Number of hits in the row (1-8)
     signal rd_nbits: std_logic_vector(3 downto 0);  -- Decoding output: Number of bits in the row (1-14)
-    signal rd_row: std_logic_vector(13 downto 0);
+    signal rd_row:   std_logic_vector(13 downto 0);
 
     shared variable total_nhits: integer range 0 to 16; -- Sum of nhits over all rows in current qcore
 
@@ -81,37 +108,95 @@ begin
                 pos := 0;
                 buf_empty <= '1';
                 state <= idle;
+                block_out <= (others => '0');
+                blocks_read <= 0;
+
+                -- Fill event boundary array with defaults
+                -- Negative numbers indicate invalid positions
+                for idx in 0 to evt_bounds'length-1 loop
+                    evt_bounds(idx) <= to_signed(-1,evt_bounds'length);
+                end loop;
             else
                 --- Assumption:
                 --- At every clock tick, we might receive a new input 64-bit block
                 --- If so, we shift our current buffer by one block length
                 --- and insert the new block
                 --- TODO: Handle case where pos < 64, i.e. we are being too slow!
-                if(datavalid='1') then
+                if(datavalid_in='1') then
+                    time_since_last_block <= 0;
+                    -- Output old block
+                    block_out <= buf(251 downto 189);
+
+                    -- Data starts being valid as soon as we have
+                    -- pushed the first block all the way through
+                    -- the buffer. Currently, blocks_read only
+                    -- counts to the max capacity of the buffer
+                    if (blocks_read=4) then
+                        datavalid_out <= '1';
+
+                        -- Initialize array of event boundaries for output
+                        for idx in 0 to evt_bounds_out'length-1 loop
+                            evt_bounds_out(idx) <= to_signed(-1, evt_bounds_out'length);
+                        end loop;
+
+                        -- Find boundaries that are part of current block
+                        evt_bound_count := 0;
+                        for idx in 0 to evt_bounds'length-1 loop
+                            if(evt_bounds(idx)>-1) and (evt_bounds(idx) < 63) then
+                                evt_bounds_out(evt_bound_count) <= resize(evt_bounds(idx) - bufsize + 64, evt_bounds_out(0)'length);
+                                evt_bounds(idx) <= to_signed(-1, evt_bounds(0)'length);
+                                evt_bound_count := evt_bound_count +1;
+                            end if;
+                         end loop;
+                    else
+                        blocks_read <= blocks_read + 1;
+                    end if;
+
+
                     -- Shift left by 63 bits
                     -- we currently ignore the leading bit of the input,
                     -- which is the new stream bit
-                    -- TODO: handle new stream bit
                     buf <= buf(188 downto 0) & (62 downto 0 => '0');
 
                     -- Insert new block
                     buf(62 downto 0) <= data(62 downto 0);
 
-                    -- Shfit position pointer
+                    -- Shift position pointer
                     if(pos=0) then
                         pos := 62;
                     else
                         pos := pos+63;
                     end if;
+
+                    -- Shift event boundaries
+                    for idx in 0 to evt_bounds'length-1 loop
+                        if(evt_bounds(idx) > 0) then
+                            evt_bounds(idx) <= evt_bounds(idx) + 63;
+                        end if;
+                    end loop;
+
+
+
                     -- Signal that the buffer is not empty
                     buf_empty <= '0';
+                else
+                    time_since_last_block <= time_since_last_block + 1;
                 end if;
 
-                if(buf_empty = '0') then
+                -- We only decode if the buffer is not empty
+                -- the and we only want to start decoding the last block (pos>63) if
+                -- we have not received data in a long time. That is the only way we can
+                -- tell beforehand whether we expect the stream to end here.
+                if(buf_empty = '0') and ((pos>63) or (time_since_last_block > timeout)) then
                     case state is
                         when idle =>
                             state <= newevent;
                         when newevent =>
+                            -- Push back the new event position
+                            for idx in evt_bounds'length-1 downto 1 loop
+                                evt_bounds(idx) <= evt_bounds(idx-1);
+                            end loop;
+                            evt_bounds(0) <= to_signed(pos,evt_bounds(0)'length);
                             -- Initialization
                             -- fine point: "islast" of the previous qcore
                             -- tells you whether the upcoming qcore
